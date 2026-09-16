@@ -24,8 +24,10 @@ python transfer.py
 | Origin file | Action |
 |---|---|
 | Name starts with `003` | Move to `DEST_DIR` |
-| Anything else, query returns a name | Rename to that name, then move to `DEST_DIR` |
+| Anything else, query returns a name | Rename to `{query}_{original_filename}`, then move to `DEST_DIR` |
 | Anything else, query empty/null | Ignore (leave in `DOWNLOAD_DIR`) |
+
+Example: origin `laudo.pdf` with query `003-12345-67890` becomes `003-12345-67890_laudo.pdf`.
 
 The lookup binds the current file name as `:file_name`:
 

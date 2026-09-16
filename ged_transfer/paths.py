@@ -280,17 +280,30 @@ def sanitize_filename(name: str) -> str:
 
 def dest_filename(original: Path, queried_name: str) -> str | None:
     """
-    Build the destiny file name from the query result.
+    Build the destiny file name as ``{queried}_{original_name}``.
 
-    Keeps the original extension when the query result has none.
-    Returns None when the result is empty after sanitizing.
+    The query result is the prefix. The original file name (including
+    extension) is appended after an underscore. If the query result already
+    ends with the same extension as the original, that extension is stripped
+    so it is not duplicated in the prefix.
+
+    Returns None when the query result is empty after sanitizing.
     """
-    raw = sanitize_filename(queried_name.strip())
-    if not raw:
+    prefix = sanitize_filename(queried_name.strip())
+    if not prefix:
         return None
-    if not Path(raw).suffix and original.suffix:
-        raw = raw + original.suffix
-    return raw
+    queried_path = Path(prefix)
+    if (
+        queried_path.suffix
+        and queried_path.suffix.casefold() == original.suffix.casefold()
+    ):
+        prefix = queried_path.stem
+        if not prefix:
+            return None
+    original_name = sanitize_filename(original.name)
+    if not original_name:
+        return None
+    return f"{prefix}_{original_name}"
 
 
 def starts_with_003(path: Path) -> bool:

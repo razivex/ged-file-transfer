@@ -2,7 +2,7 @@
 GED file transfer entrypoint.
 
 Origin: DOWNLOAD_DIR   Destiny: DEST_DIR
-Credentials: ged-file_transfer/.env (gitignored). See AGENTS.md.
+Credentials: ged-file-transfer/.env (gitignored). See AGENTS.md.
 """
 from __future__ import annotations
 
