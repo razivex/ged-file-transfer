@@ -1,0 +1,32 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# IDE / local
+.vscode/
+.idea/
+.grok/
+*.swp
+
+# Local secrets — NEVER commit
+.env
+.env.local
+.env.*
+!.env.example
+credentials.*
+secrets.*
+
+# Runtime / generated
+logs/
+*.html
+!requirements.txt
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
