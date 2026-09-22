@@ -21,6 +21,9 @@ __pycache__/
 credentials.*
 secrets.*
 
+# Lookup SQL stays on this machine (SQL_FILE may be any name or subfolder).
+*.sql
+
 # Runtime / generated
 logs/
 *.html
