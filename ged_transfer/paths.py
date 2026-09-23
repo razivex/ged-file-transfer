@@ -278,36 +278,15 @@ def sanitize_filename(name: str) -> str:
     return cleaned.rstrip(" .")
 
 
-def dest_filename(original: Path, queried_name: str) -> str | None:
+def destination_name(queried_name: str) -> str | None:
+    """Use the SQL result as the destiny file name.
+
+    Characters a file name cannot contain are replaced. Returns None when
+    the result is empty after that cleanup. The script does not add a
+    prefix or apply any other naming rule.
     """
-    Build the destiny file name as ``{queried}_{original_name}``.
-
-    The query result is the prefix. The original file name (including
-    extension) is appended after an underscore. If the query result already
-    ends with the same extension as the original, that extension is stripped
-    so it is not duplicated in the prefix.
-
-    Returns None when the query result is empty after sanitizing.
-    """
-    prefix = sanitize_filename(queried_name.strip())
-    if not prefix:
-        return None
-    queried_path = Path(prefix)
-    if (
-        queried_path.suffix
-        and queried_path.suffix.casefold() == original.suffix.casefold()
-    ):
-        prefix = queried_path.stem
-        if not prefix:
-            return None
-    original_name = sanitize_filename(original.name)
-    if not original_name:
-        return None
-    return f"{prefix}_{original_name}"
-
-
-def starts_with_003(path: Path) -> bool:
-    return path.name.startswith("003")
+    name = sanitize_filename(queried_name.strip())
+    return name or None
 
 
 def list_origin_files(origin: Path, dest: Path) -> list[Path]:

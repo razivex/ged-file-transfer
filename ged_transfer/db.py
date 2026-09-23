@@ -1,4 +1,4 @@
-"""Oracle lookup: map a GED file name using the local SQL file."""
+"""Oracle lookup: the SQL file returns the destiny file name."""
 
 from __future__ import annotations
 

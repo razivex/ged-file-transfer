@@ -4,8 +4,10 @@ Moves files from an origin folder (`DOWNLOAD_DIR`) to a destiny folder (`DEST_DI
 
 `DB_LOOKUP` chooses what happens to each file:
 
-- **`true`** — look the file up in Oracle with the SQL file you choose, rename it from the query result, then move it. Names that already start with `003` are moved as they are. This is the default when `DB_LOOKUP` is left unset.
+- **`true`** — run your SQL file for every file. The value the query returns is the full destiny file name: the script renames the file to that value and moves it. A query that returns nothing leaves the file in the origin folder. This is the default when `DB_LOOKUP` is left unset.
 - **`false`** — move every file and keep its current name. The database is not contacted.
+
+The script does not contain a naming policy. Keeping a name, skipping a name, or building a new name (for example a prefix plus the original file name) is written in the SQL file, so each person can use the script for a different case.
 
 Only files sitting directly in the origin folder are transferred. Subfolders are left alone. A move removes the file from origin. If the destiny folder already has that name, the script appends `_1`, `_2`, and so on, and does not overwrite.
 
@@ -86,35 +88,28 @@ SQL_FILE=query\ged_lookup
                         v                 v
                move every file     open SQL_FILE
                origin -------->    inside the project
-               destiny             bind name: :file_name
-               keep the name              |
-                        |                 v
+               destiny                    |
+               keep the name              v
                         |          each file in DOWNLOAD_DIR
                         |                 |
                         |                 v
-                        |          name starts with 003 ?
+                        |            run the SQL
+                        |            :file_name = this file
+                        |                 |
+                        |                 v
+                        |          query returned a name ?
                         |            /              \
                         |          yes               no
                         |           |                 |
                         |           v                 v
-                        |      move as-is        run the SQL file
-                        |      to DEST_DIR       :file_name = this file
-                        |           |                 |
-                        |           |                 v
-                        |           |          query returned a name ?
-                        |           |            /              \
-                        |           |          yes               no
-                        |           |           |                 |
-                        |           |           v                 v
-                        |           |    rename to           leave the file
-                        |           |    {query}_{file}      in DOWNLOAD_DIR
-                        |           |    and move
-                        |           |    to DEST_DIR
+                        |    rename to {query}   ignore the file
+                        |    and move            leave it in
+                        |    to DEST_DIR         DOWNLOAD_DIR
                         v           v
                       print the summary
 ```
 
-`{query}` is the text returned by the SQL file. `{file}` is the original file name, extension included. Example: origin `laudo.pdf` with query result `003-12345-67890` becomes `003-12345-67890_laudo.pdf`.
+`{query}` is the text the SQL file returns. That text is the whole destiny file name. If the query returns `report_laudo.pdf`, the file is saved as `report_laudo.pdf`. The script does not append the original name on its own.
 
 ## How the DB lookup works
 
@@ -122,36 +117,44 @@ The lookup runs only when `DB_LOOKUP` is `true`.
 
 1. The script checks that `SQL_FILE` exists before it moves anything.
 2. It lists the files in `DOWNLOAD_DIR`.
-3. A file whose name starts with `003` is already in the final form. It is moved to `DEST_DIR` and the database is not asked about it.
-4. For every other file, the script connects to Oracle (once per run, on the first file that needs it) and runs your SQL file.
-5. The current file name is passed as the bind variable `:file_name`.
-6. The first non-empty value in the first column becomes the prefix.
-7. The destiny name is `{prefix}_{original file name}`. If the prefix already ends with the same extension as the file, that extra extension is removed from the prefix so it is not repeated.
-8. An empty result, or a null, leaves the file in `DOWNLOAD_DIR`.
-9. The connection is closed at the end of the run.
+3. It connects to Oracle once for the run.
+4. For every file, it runs your SQL file. The current file name is passed as `:file_name`.
+5. The first non-empty value in the first column is the destiny file name. The file is renamed to that value and moved to `DEST_DIR`.
+6. No row, an empty value, or null leaves the file in `DOWNLOAD_DIR`.
+7. The connection is closed at the end of the run.
 
-Your SQL file must be a single statement and must contain `:file_name`. A trailing semicolon is fine; the script removes one before sending the statement to Oracle. The statement below is the one in the local `ged_lookup.sql`:
+Characters a Windows file name cannot contain (`\ / : * ? " < > |`) are replaced with `_` so the name can be saved. If `DEST_DIR` already has that name, `_1`, `_2`, and so on are appended. The file is not overwritten.
+
+Your SQL file must be a single statement and must contain `:file_name`. A trailing semicolon is fine; the script removes one before sending the statement to Oracle. Several rows can come back; the first non-empty value is the one that is used.
+
+Naming rules live in that file. Typical choices:
+
+- Return `:file_name` when the file should keep its name.
+- Return a built string, such as `prefix || '_' || :file_name`, when the file should be renamed.
+- Return no row when the file should stay in the origin folder.
 
 ```sql
-select '003-'|| nvl(nr_atendimento,tasy.obter_ultimo_atendimento(cd_pessoa_fisica)) ||'-' || cd_pessoa_fisica
-from tasy.ged_atendimento
-where cd_pessoa_fisica is not null
-and regexp_substr(ds_arquivo,'/([^/]+)\?',1,1,null,1) = :file_name;
+-- The selected column is the full destiny file name.
+-- :file_name is the current origin file.
+-- No row leaves the file in DOWNLOAD_DIR.
+
+select case
+         when :file_name like 'KEEP%' then :file_name
+         else 'PREFIX_' || :file_name
+       end
+from dual;
 ```
 
-That reads `tasy.ged_atendimento`, keeps rows that have a person id, and matches the file name stored in `ds_arquivo`. The selected text is `003-{attendance}-{person}`. `nvl` fills the attendance number from `tasy.obter_ultimo_atendimento` when `nr_atendimento` is null.
-
-Changing the query means editing the local `.sql` file (or pointing `SQL_FILE` at another file in the project). The Python code does not contain a second copy of the statement.
+That example is only a shape. Point `SQL_FILE` at your own statement: another table, another prefix, or no rename at all. The local `.sql` file is gitignored, so each machine keeps its own query.
 
 ## Behaviour
 
 Lookup on (`DB_LOOKUP=true`):
 
-| Origin file | Action |
+| SQL result | Action |
 |---|---|
-| Name starts with `003` | Move to `DEST_DIR` |
-| Anything else, query returns a name | Rename to `{query}_{original file name}`, then move to `DEST_DIR` |
-| Anything else, query empty or null | Leave the file in `DOWNLOAD_DIR` |
+| A name | Rename to that name, then move to `DEST_DIR` |
+| No row, empty, or null | Leave the file in `DOWNLOAD_DIR` |
 
 Lookup off (`DB_LOOKUP=false`):
 

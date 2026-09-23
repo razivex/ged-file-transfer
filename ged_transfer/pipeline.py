@@ -1,6 +1,6 @@
 """Process each origin file.
 
-DB lookup on: move names that start with 003, otherwise lookup → rename → move.
+DB lookup on: run the SQL file; the returned value is the destiny file name.
 DB lookup off: move every file and keep its name.
 """
 
@@ -12,12 +12,11 @@ from typing import Any
 from ged_transfer.config import lookup_enabled, resolve_sql_file
 from ged_transfer.db import connect, lookup_new_name, read_lookup_sql
 from ged_transfer.paths import (
-    dest_filename,
+    destination_name,
     ensure_dest_access,
     ensure_origin_access,
     list_origin_files,
     move_to_dest,
-    starts_with_003,
 )
 
 
@@ -57,11 +56,13 @@ def main() -> None:
 
     conn: Any | None = None
     moved = 0
-    renamed = 0
     ignored = 0
     errors = 0
 
     try:
+        if lookup:
+            conn = connect()
+
         for path in files:
             try:
                 if not lookup:
@@ -70,30 +71,21 @@ def main() -> None:
                     moved += 1
                     continue
 
-                if starts_with_003(path):
-                    target = move_to_dest(path, dest)
-                    print(f"   Move (003*): {path.name} -> {target.name}")
-                    moved += 1
-                    continue
-
-                if conn is None:
-                    conn = connect()
-
                 queried = lookup_new_name(conn, path.name, sql_text)
                 if not queried:
-                    print(f"   Ignore (no DB match): {path.name}")
+                    print(f"   Ignore (no name from SQL): {path.name}")
                     ignored += 1
                     continue
 
-                new_name = dest_filename(path, queried)
+                new_name = destination_name(queried)
                 if not new_name:
-                    print(f"   Ignore (empty queried name): {path.name}")
+                    print(f"   Ignore (empty name from SQL): {path.name}")
                     ignored += 1
                     continue
 
                 target = move_to_dest(path, dest, new_name)
-                print(f"   Rename + move: {path.name} -> {target.name}")
-                renamed += 1
+                print(f"   Move: {path.name} -> {target.name}")
+                moved += 1
             except SystemExit:
                 raise
             except Exception as e:
@@ -105,10 +97,7 @@ def main() -> None:
 
     print()
     if lookup:
-        print(
-            f"Done. lookup=on  moved={moved}  renamed={renamed}  "
-            f"ignored={ignored}  errors={errors}"
-        )
+        print(f"Done. lookup=on  moved={moved}  ignored={ignored}  errors={errors}")
     else:
         print(f"Done. lookup=off  moved={moved}  errors={errors}")
     if errors:

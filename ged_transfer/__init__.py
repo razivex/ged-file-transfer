@@ -1,1 +1,1 @@
-"""GED file transfer: optional Tasy lookup and rename, then move origin to destiny."""
+"""GED file transfer: move origin to destiny, optionally renaming from a SQL file."""
