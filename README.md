@@ -37,6 +37,7 @@ python transfer.py
 | `DOWNLOAD_DIR` | Origin folder |
 | `DEST_DIR` | Destiny folder |
 | `DB_LOOKUP` | `true` or `false`. Omitted means `true` |
+| `ALWAYS_LISTENING` | `true` or `false`. `true` stays open and transfers new files. Omitted, empty, or `null` means `false`: run once and exit |
 | `SQL_FILE` | Query file inside this project. Used only when lookup is on. Omitted means `ged_lookup.sql` |
 | `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_SERVICE` | Oracle connection. Used only when lookup is on and a file needs a query |
 
@@ -107,9 +108,38 @@ SQL_FILE=query\ged_lookup
                         |    to DEST_DIR         DOWNLOAD_DIR
                         v           v
                       print the summary
+                             |
+                             v
+                     ALWAYS_LISTENING ?
+                       /            \
+                   false              true
+                     |                 |
+                     v                 v
+                   exit          stay open and
+                                 repeat for new files
 ```
 
 `{query}` is the text the SQL file returns. That text is the whole destiny file name. If the query returns `report_laudo.pdf`, the file is saved as `report_laudo.pdf`. The script does not append the original name on its own.
+
+## Always listening
+
+Leave `ALWAYS_LISTENING` unset, empty, `null`, or `false` to keep the manual run: the script transfers what is already in the origin folder, prints the summary, and exits.
+
+Set it to `true` to run that same pass and then stay open:
+
+```env
+ALWAYS_LISTENING=true
+```
+
+The process then looks at `DOWNLOAD_DIR` every 2 seconds. Polling is used because the origin folder is often a network share, where Windows folder-change events are not reliable.
+
+- Files already in the folder when the process starts are transferred immediately.
+- A file that shows up later is transferred only after its size and last-write time stay the same for one look. A copy that is still arriving stays in the origin folder until the copy finishes.
+- The same `DB_LOOKUP` rules apply to those later files.
+- A file the SQL leaves in origin is not queried again until the file itself changes, or the script is started again.
+- Press Ctrl+C to stop. The window stays open until then.
+
+`start.bat` launches the same entry point. With `ALWAYS_LISTENING=true` in `.env`, that window stays open and keeps transferring new files.
 
 ## How the DB lookup works
 
@@ -117,11 +147,11 @@ The lookup runs only when `DB_LOOKUP` is `true`.
 
 1. The script checks that `SQL_FILE` exists before it moves anything.
 2. It lists the files in `DOWNLOAD_DIR`.
-3. It connects to Oracle once for the run.
+3. It connects to Oracle once. With `ALWAYS_LISTENING=true`, that connection stays open while the script waits and is reopened if it drops.
 4. For every file, it runs your SQL file. The current file name is passed as `:file_name`.
 5. The first non-empty value in the first column is the destiny file name. The file is renamed to that value and moved to `DEST_DIR`.
 6. No row, an empty value, or null leaves the file in `DOWNLOAD_DIR`.
-7. The connection is closed at the end of the run.
+7. The connection is closed when the script exits.
 
 Characters a Windows file name cannot contain (`\ / : * ? " < > |`) are replaced with `_` so the name can be saved. If `DEST_DIR` already has that name, `_1`, `_2`, and so on are appended. The file is not overwritten.
 

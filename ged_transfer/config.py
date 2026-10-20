@@ -110,6 +110,37 @@ def lookup_enabled() -> bool:
     )
 
 
+def parse_always_listening(raw: str | None) -> bool:
+    """Return whether the process should stay open after the first pass.
+
+    True values match ``DB_LOOKUP``: true, yes, on, 1. False values: false,
+    no, off, 0. Empty and ``null`` (any case) are false. Anything else is a
+    configuration error.
+    """
+    value = (raw or "").strip()
+    if not value or value.casefold() == "null":
+        return False
+    token = value.casefold()
+    if token in _TRUE:
+        return True
+    if token in _FALSE:
+        return False
+    raise SystemExit(
+        f"ALWAYS_LISTENING must be true or false (got {value!r}).\n"
+        f"  Set it in {PROJECT_ROOT / '.env'}.\n"
+        "  Omitted, empty, or null means false: run once and exit."
+    )
+
+
+def always_listening() -> bool:
+    """Stay open and transfer files as they arrive.
+
+    Omitted, empty, or null means false: run once and exit.
+    """
+    load_dotenv()
+    return parse_always_listening(_raw("ALWAYS_LISTENING"))
+
+
 def sql_path_from_setting(raw: str, project_root: Path) -> Path:
     """Resolve a project-relative SQL path.
 

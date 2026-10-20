@@ -22,6 +22,7 @@ ged-file-transfer/          ← transfer.py, .env, requirements.txt, local *.sql
 - Origin: `DOWNLOAD_DIR` (required)
 - Destiny: `DEST_DIR` (required)
 - `DB_LOOKUP`: `true` (default when omitted) runs `SQL_FILE` for every origin file. The returned value is the full destiny file name. `false` moves every origin file and keeps its name. No database connection in that mode.
+- `ALWAYS_LISTENING`: `true` runs one pass, then stays open and transfers new origin files. `false`, omitted, empty, or `null` runs one pass and exits. The worker polls every 2 seconds (origin may be a UNC share). A file that appears while the process is open is moved only after its size and modification time stay unchanged for one poll. Files already in origin at startup are transferred immediately. A file the SQL leaves in origin is not queried again until that file changes or the process starts again. Ctrl+C stops the worker.
 - `SQL_FILE`: project-relative lookup statement, used only when `DB_LOOKUP` is true. `.sql` is optional. Subfolders are allowed (`query\sql` or `query\sql.sql`). Defaults to `ged_lookup.sql`. `*.sql` is gitignored — do not commit the query.
 - `DOWNLOAD_DIR_USER` / `DOWNLOAD_DIR_PASSWORD` only when a directory is not already accessible
 - `DEST_DIR_USER` / `DEST_DIR_PASSWORD` optional; fall back to `DOWNLOAD_DIR_*`
