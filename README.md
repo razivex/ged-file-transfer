@@ -4,8 +4,8 @@ Moves files from an origin folder (`DOWNLOAD_DIR`) to a destiny folder (`DEST_DI
 
 `DB_LOOKUP` chooses what happens to each file:
 
-- **`true`** — run your SQL file for every file. The value the query returns is the full destiny file name: the script renames the file to that value and moves it. A query that returns nothing leaves the file in the origin folder. This is the default when `DB_LOOKUP` is left unset.
-- **`false`** — move every file and keep its current name. The database is not contacted.
+- **`true`** — run your SQL file for every file. The value the query returns is the full destiny file name: the script renames the file to that value and moves it. A query that returns nothing leaves the file in the origin folder.
+- **`false`** — move every file and keep its current name. The database is not contacted. This is also what happens when `DB_LOOKUP` is omitted, empty, or `null`.
 
 The script does not contain a naming policy. Keeping a name, skipping a name, or building a new name (for example a prefix plus the original file name) is written in the SQL file, so each person can use the script for a different case.
 
@@ -36,7 +36,7 @@ python transfer.py
 |---|---|
 | `DOWNLOAD_DIR` | Origin folder |
 | `DEST_DIR` | Destiny folder |
-| `DB_LOOKUP` | `true` or `false`. Omitted means `true` |
+| `DB_LOOKUP` | `true` or `false`. Omitted, empty, or `null` means `false`: move every file and keep its name |
 | `ALWAYS_LISTENING` | `true` or `false`. `true` stays open and transfers new files. Omitted, empty, or `null` means `false`: run once and exit |
 | `SQL_FILE` | Query file inside this project. Used only when lookup is on. Omitted means `ged_lookup.sql` |
 | `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_SERVICE` | Oracle connection. Used only when lookup is on and a file needs a query |

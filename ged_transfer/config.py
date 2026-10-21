@@ -89,34 +89,8 @@ def load_dir_config() -> dict[str, str | None]:
     }
 
 
-def lookup_enabled() -> bool:
-    """Return whether this run should rename files via the database.
-
-    ``DB_LOOKUP`` accepts true/false (also yes/no, on/off, 1/0), ignoring case.
-    When the variable is omitted, lookup stays on — the same behaviour as before.
-    """
-    load_dotenv()
-    raw = _raw("DB_LOOKUP")
-    if not raw:
-        return True
-    token = raw.casefold()
-    if token in _TRUE:
-        return True
-    if token in _FALSE:
-        return False
-    raise SystemExit(
-        f"DB_LOOKUP must be true or false (got {raw!r}).\n"
-        f"  Set it in {PROJECT_ROOT / '.env'}."
-    )
-
-
-def parse_always_listening(raw: str | None) -> bool:
-    """Return whether the process should stay open after the first pass.
-
-    True values match ``DB_LOOKUP``: true, yes, on, 1. False values: false,
-    no, off, 0. Empty and ``null`` (any case) are false. Anything else is a
-    configuration error.
-    """
+def _parse_bool_setting(key: str, raw: str | None, detail: str) -> bool:
+    """Parse a true/false setting. Empty and ``null`` are false."""
     value = (raw or "").strip()
     if not value or value.casefold() == "null":
         return False
@@ -126,9 +100,36 @@ def parse_always_listening(raw: str | None) -> bool:
     if token in _FALSE:
         return False
     raise SystemExit(
-        f"ALWAYS_LISTENING must be true or false (got {value!r}).\n"
+        f"{key} must be true or false (got {value!r}).\n"
         f"  Set it in {PROJECT_ROOT / '.env'}.\n"
-        "  Omitted, empty, or null means false: run once and exit."
+        f"  {detail}"
+    )
+
+
+def lookup_enabled() -> bool:
+    """Return whether this run should rename files via the database.
+
+    ``DB_LOOKUP`` accepts true/false (also yes/no, on/off, 1/0), ignoring case.
+    Omitted, empty, or null means false: move every file and keep its name.
+    """
+    load_dotenv()
+    return _parse_bool_setting(
+        "DB_LOOKUP",
+        _raw("DB_LOOKUP"),
+        "Omitted, empty, or null means false: move every file and keep its name.",
+    )
+
+
+def parse_always_listening(raw: str | None) -> bool:
+    """Return whether the process should stay open after the first pass.
+
+    True values: true, yes, on, 1. False values: false, no, off, 0.
+    Empty and ``null`` (any case) are false. Anything else is a configuration error.
+    """
+    return _parse_bool_setting(
+        "ALWAYS_LISTENING",
+        raw,
+        "Omitted, empty, or null means false: run once and exit.",
     )
 
 
